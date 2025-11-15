@@ -1,0 +1,484 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>KCD2 Alchemy Advisor</title>
+    <link rel="manifest" href="manifest.json">
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+    <style>
+        body {
+            font-family: 'Georgia', serif;
+            background-color: #D2B48C; /* Tan parchment */
+            color: #000;
+            margin: 0;
+            padding: 10px;
+            max-width: 100%;
+            overflow-x: hidden;
+        }
+        h1 {
+            text-align: center;
+            font-size: 1.5em;
+            margin-bottom: 20px;
+        }
+        .section {
+            margin-bottom: 20px;
+            padding: 10px;
+            background: rgba(255,255,255,0.7);
+            border-radius: 5px;
+        }
+        label {
+            display: block;
+            margin: 5px 0;
+            font-weight: bold;
+        }
+        input[type="number"] {
+            width: 60px;
+            padding: 5px;
+            border: 1px solid #8B4513; /* Saddle brown */
+            border-radius: 3px;
+        }
+        button {
+            background-color: #8B4513;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 1em;
+            margin: 5px;
+        }
+        button:hover {
+            background-color: #A0522D;
+        }
+        #recipesList {
+            list-style: none;
+            padding: 0;
+        }
+        #recipesList li {
+            background: #F5DEB3;
+            margin: 5px 0;
+            padding: 10px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #recipesList li:hover {
+            background: #DEB887;
+        }
+        #guide {
+            white-space: pre-wrap;
+            font-size: 0.9em;
+            line-height: 1.4;
+        }
+        .scrollable {
+            max-height: 200px;
+            overflow-y: auto;
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: #8B4513 transparent;
+        }
+        .scrollable::-webkit-scrollbar {
+            width: 8px;
+        }
+        .scrollable::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        .scrollable::-webkit-scrollbar-thumb {
+            background: #8B4513;
+            border-radius: 4px;
+        }
+        .scrollable::-webkit-scrollbar-thumb:hover {
+            background: #A0522D;
+        }
+        /* Ensure touch scrolling works on mobile */
+        @media (max-width: 768px) {
+            .scrollable {
+                -webkit-overflow-scrolling: touch;
+                touch-action: pan-y; /* Allow vertical scroll only */
+            }
+        }
+    </style>
+</head>
+<body>
+    <h1>Full Alchemy Advisor<br>for Kingdom Come: Deliverance 2</h1>
+    
+    <div class="section">
+        <h2>Enter Ingredient Quantities</h2>
+        <div class="scrollable" id="inputs">
+            <!-- Inputs will be dynamically added here -->
+        </div>
+        <button onclick="checkRecipes()">Check Available Recipes</button>
+    </div>
+    
+    <div class="section">
+        <h2>Available Recipes</h2>
+        <ul id="recipesList">
+            <!-- Recipes will be dynamically added here -->
+        </ul>
+    </div>
+    
+    <div class="section">
+        <h2>Selected Recipe Guide & Effects</h2>
+        <div id="guide">
+            Tap a recipe above to view its brewing guide and effects.<br><br>
+            Tips:<br>
+            - Bases (Water, Wine, Oil, Spiritus) assumed available.<br>
+            - Grinding: 10s/unit; use bellows for quality.<br>
+            - Distil for potency; pour for basic.<br>
+            - Effects scale with quality (Weak/Normal/Strong/Henry).
+        </div>
+    </div>
+
+    <script>
+        const ingredients = [
+            'Nettle', 'Marigold', 'Belladonna', 'Sage', 'Mint', 'Thistle', 'Charcoal',
+            'Dandelion', "St. John's Wort", 'Valerian', 'Chamomile', 'Poppy', 'Comfrey',
+            'Eyebright', 'Wormwood', 'Feverfew', 'Ginger', 'Elderberry leaves', 'Henbane',
+            'Cobweb', "Boar’s tusk", 'Mandrake root', 'Freshwater pearl', 'Amanita muscaria',
+            'Herb Paris'
+        ];
+
+        const recipes = {
+            'Aesop': {
+                'ingredients': {'Comfrey': 2, 'Belladonna': 1, "Boar’s tusk": 1},
+                'base': 'Spiritus',
+                'steps': [
+                    'Grind the 2 Comfrey (20 seconds) and add it to the cauldron.',
+                    'Add the Boar’s tusk to the cauldron and boil for 20 seconds.',
+                    'Grind the Belladonna (10 seconds) and add it to the cauldron.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Increases Horsemanship and Houndmaster by 3-7 (quality-dependent) for 15 min to 1 day. Animals take less notice; high quality prevents dogs from barking.'
+            },
+            'Aqua Vitalis': {
+                'ingredients': {'Dandelion': 2, 'Marigold': 1},
+                'base': 'Water',
+                'steps': [
+                    'Add the 2 Dandelion to the cauldron and boil for 10 seconds.',
+                    'Grind the Marigold (10 seconds) and add it to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Reduces health loss by 15-60% and slows bleeding by 10-60% for 5-15 minutes (higher quality = better).'
+            },
+            'Artemisia': {
+                'ingredients': {'Wormwood': 2, 'Sage': 1},
+                'base': 'Spiritus',
+                'steps': [
+                    'Add the Sage to the cauldron and boil for 10 seconds.',
+                    'Grind the 2 Wormwood (20 seconds) and add it to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': '+2-6 Strength for 10-15 minutes; high quality reduces attack/defense stamina cost by 25-35%.'
+            },
+            'Bowman’s Brew': {
+                'ingredients': {'Eyebright': 2, "St. John's Wort": 1},
+                'base': 'Spiritus',
+                'steps': [
+                    'Add the 2 Eyebright to the cauldron and boil for 30 seconds.',
+                    'Grind the St. John\'s Wort (10 seconds) and add to the cauldron.',
+                    'Boil for 10 seconds using the bellows.',
+                    'Finally, distil.'
+                ],
+                'effects': '+3-8 Marksmanship for 10-15 minutes; reduces/stops stamina drain while aiming (20-100%).'
+            },
+            'Buck’s Blood potion': {
+                'ingredients': {"St. John's Wort": 1, 'Dandelion': 1, 'Comfrey': 1},
+                'base': 'Oil',
+                'steps': [
+                    'Grind the St. John\'s Wort (10 seconds) and add it to the cauldron.',
+                    'Add the Comfrey to the cauldron and boil for 10 seconds.',
+                    'Add the Dandelion to the cauldron and using the bellows, boil for 10 seconds.',
+                    'Finally, pour.'
+                ],
+                'effects': '+25-60% max Stamina and +15-30% regeneration for 20 minutes to 1 hour.'
+            },
+            'Chamomile decoction': {
+                'ingredients': {'Chamomile': 2, 'Sage': 1},
+                'base': 'Wine',
+                'steps': [
+                    'Add the 2 Chamomile to the cauldron and boil for 10 seconds.',
+                    'Grind the Sage (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Sleep heals 2-5x faster for 12 hours to 2 days; high quality boosts energy restore 2-3x.'
+            },
+            'Cockerel': {
+                'ingredients': {'Valerian': 1, 'Mint': 2},
+                'base': 'Spiritus',
+                'steps': [
+                    'Grind the 2 Mint (20 seconds) and add to the cauldron.',
+                    'Boil for 10 seconds.',
+                    'Add the Valerian to the cauldron and boil for 20 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': '+10-30 Energy; slows fatigue drain by 20-50% for 12 hours to 1 day.'
+            },
+            'Digestive Potion': {
+                'ingredients': {'Nettle': 1, 'Thistle': 2, 'Charcoal': 1},
+                'base': 'Water',
+                'steps': [
+                    'Add the 2 Thistle to the cauldron and boil for 20 seconds.',
+                    'Grind the Nettle (10 seconds) and add it to the cauldron.',
+                    'Boil for 10 seconds.',
+                    'Grind the Charcoal (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Reduces nourishment by 20-30, cures food/poisoning; +1-3 Vitality for 10-20 minutes.'
+            },
+            'Embrocation': {
+                'ingredients': {'Eyebright': 1, 'Poppy': 1, 'Valerian': 1, "Boar’s tusk": 1},
+                'base': 'Oil',
+                'steps': [
+                    'Add the Poppy and Valerian to the cauldron and boil for 20 seconds.',
+                    'Grind the Eyebright (10 seconds) and add it to the cauldron.',
+                    'Add the Boar’s tusk and boil for 10 seconds.',
+                    'Finally, pour.'
+                ],
+                'effects': '+2-6 Agility for 10-20 minutes; reduces sprint stamina cost by 10-30%.'
+            },
+            'Fever tonic': {
+                'ingredients': {'Feverfew': 3, 'Ginger': 2, 'Elderberry leaves': 1},
+                'base': 'Wine',
+                'steps': [
+                    'Add the 3 Feverfew to the cauldron and boil for 20 seconds.',
+                    'Grind the Elderberry leaves (10 seconds) and add them to the cauldron.',
+                    'Add the 2 Ginger to the cauldron.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Alleviates fever and prevents related complications/death if administered in time.'
+            },
+            'Fox': {
+                'ingredients': {'Nettle': 1, "St. John's Wort": 1, 'Belladonna': 1, 'Charcoal': 1},
+                'base': 'Oil',
+                'steps': [
+                    'Grind the St. John\'s Wort and Nettle (20 seconds) and add them to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Grind the Charcoal (10 seconds) and add it to the cauldron.',
+                    'Add the Belladonna and boil for 10 seconds.',
+                    'Finally, pour.'
+                ],
+                'effects': '+3 Speech for 12 hours; good quality speeds reading; best quality +XP gain.'
+            },
+            'Hair o’ the Dog': {
+                'ingredients': {'Sage': 1, "St. John's Wort": 1, 'Mint': 1},
+                'base': 'Water',
+                'steps': [
+                    'Add the Sage and St. John\'s Wort to the cauldron.',
+                    'Boil for 30 seconds.',
+                    'Grind the Mint (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Reduces drunkenness; good quality fully sobers and cures hangover/alcoholism.'
+            },
+            'Lethean Water': {
+                'ingredients': {'Wormwood': 2, 'Belladonna': 1, 'Henbane': 1},
+                'base': 'Spiritus',
+                'steps': [
+                    'Grind the 2 Wormwood (20 seconds) and add it to the cauldron.',
+                    'Add the Belladonna and boil for 30 seconds.',
+                    'Add the Henbane to the cauldron.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Resets all perk points (irreversible and painful procedure).'
+            },
+            'Lion': {
+                'ingredients': {'Sage': 2, 'Mint': 2},
+                'base': 'Spiritus',
+                'steps': [
+                    'Add the 2 Sage to the cauldron and boil for 20 seconds.',
+                    'Grind the 2 Mint (20 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Strong, short charisma boost; reduces charisma if mixed with other perfumes.'
+            },
+            'Marigold decoction': {
+                'ingredients': {'Nettle': 1, 'Marigold': 2},
+                'base': 'Water',
+                'steps': [
+                    'Add the Nettle to the cauldron and boil for 20 seconds.',
+                    'Grind the 2 Marigold (20 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Gradually heals health; good quality instantly cures hangover.'
+            },
+            'Mintha': {
+                'ingredients': {'Dandelion': 3, 'Marigold': 1, 'Mint': 1},
+                'base': 'Wine',
+                'steps': [
+                    'Grind the 3 Dandelion and Mint (40 seconds) and add them to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Add the Marigold to the cauldron and boil for 10 seconds using the bellows.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Weak, long-lasting charisma boost; reduces charisma if mixed with other perfumes.'
+            },
+            'Moonshine': {
+                'ingredients': {'Mint': 2, 'Wormwood': 2},
+                'base': 'Spiritus',
+                'steps': [
+                    'Add the 2 Wormwood to the cauldron and boil for 20 seconds.',
+                    'Grind the 2 Mint (20 seconds) and add it to the cauldron.',
+                    'Boil for 10 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Strong alcohol for good mood (may cause hangover); high sell value.'
+            },
+            'Nighthawk': {
+                'ingredients': {'Eyebright': 2, 'Belladonna': 1, 'Chamomile': 1},
+                'base': 'Water',
+                'steps': [
+                    'Grind the 2 Eyebright (20 seconds) and add it to the cauldron.',
+                    'Add the Belladonna and boil for 30 seconds.',
+                    'Grind the Chamomile (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Improves night vision; good quality slows energy depletion.'
+            },
+            'Painkiller brew': {
+                'ingredients': {'Poppy': 3, 'Comfrey': 1, 'Marigold': 1},
+                'base': 'Spiritus',
+                'steps': [
+                    'Grind the 3 Poppy (30 seconds) and add it to the cauldron.',
+                    'Add the Marigold and using the bellows, boil for 10 seconds.',
+                    'Add the Comfrey and boil for 20 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Reduces wound pain/effects; prevents stamina loss from injuries (quality-dependent).'
+            },
+            'Quickfinger': {
+                'ingredients': {'Eyebright': 2, 'Valerian': 2, 'Cobweb': 1},
+                'base': 'Water',
+                'steps': [
+                    'Add the Cobweb and 2 Eyebright to the cauldron and boil for 30 seconds.',
+                    'Grind the 2 Valerian (20 seconds) and add it to the cauldron.',
+                    'Boil for 10 seconds.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Boosts Craftsmanship and Thievery skills (duration/magnitude by quality).'
+            },
+            'Soap': {
+                'ingredients': {'Thistle': 2, 'Dandelion': 1, 'Charcoal': 1},
+                'base': 'Oil',
+                'steps': [
+                    'Grind the 2 Thistle (20 seconds) and add it to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Add the Dandelion to the cauldron and boil for 10 seconds.',
+                    'Grind the Charcoal (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Cleans dirty clothes for better hygiene/reputation.'
+            },
+            'Saviour Schnapps': {
+                'ingredients': {'Nettle': 1, 'Belladonna': 2},
+                'base': 'Wine',
+                'steps': [
+                    'Add the Nettle to the cauldron and boil for 20 seconds.',
+                    'Grind the 2 Belladonna (20 seconds).',
+                    'Add the Belladonna to the cauldron and boil for 10 seconds.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Saves game progress; good quality temporarily +Strength, Vitality, Agility.'
+            },
+            'Mandrake Decoction': {
+                'ingredients': {'Mandrake root': 1, 'Sage': 2, 'Freshwater pearl': 1},
+                'base': 'Wine',
+                'steps': [
+                    'Add Wine to the cauldron.',
+                    'Add the Mandrake root and boil for 10 seconds.',
+                    'Grind the Freshwater pearl (10 seconds) and add it to the cauldron.',
+                    'Boil for 10 seconds.',
+                    'Grind the 2 Sage (20 seconds) and add to the cauldron.',
+                    'Using the bellows, boil for 10 seconds.',
+                    'Finally, distil into phials.'
+                ],
+                'effects': 'Gradually heals health; good quality +Vitality and reduces stamina drain from strikes.'
+            },
+            'Poison – Bane': {
+                'ingredients': {'Wormwood': 1, 'Belladonna': 2, 'Amanita muscaria': 1},
+                'base': 'Wine',
+                'steps': [
+                    'Add the Wormwood to the cauldron and boil for 20 seconds.',
+                    'Grind the 2 Belladonna (20 seconds) and add to the cauldron.',
+                    'Boil for 10 seconds using the bellows.',
+                    'Add the Amanita muscaria to the cauldron.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Depletes 110 health in 15-45 seconds (faster with quality), prevents running; best for pots.'
+            },
+            'Poison – Dollmaker': {
+                'ingredients': {'Valerian': 1, 'Herb Paris': 2},
+                'base': 'Spiritus',
+                'steps': [
+                    'Add the 2 Herb Paris to the cauldron and boil for 30 seconds.',
+                    'Grind the Valerian (10 seconds) and add it to the cauldron.',
+                    'Boil for 20 seconds.',
+                    'Finally, distil.'
+                ],
+                'effects': 'Prevents running, -3-5 all weapon skills, gradual -20-50 health; best for weapons.'
+            },
+            'Poison – Lullaby': {
+                'ingredients': {'Poppy': 1, 'Herb Paris': 1, 'Thistle': 1},
+                'base': 'Oil',
+                'steps': [
+                    'Add the Poppy to the cauldron and boil for 10 seconds.',
+                    'Add the Thistle and boil for 10 seconds.',
+                    'Grind the Herb Paris (10 seconds) and add it to the cauldron.',
+                    'Finally, pour.'
+                ],
+                'effects': 'Drops energy to 0, reduces stamina regen; suitable for weapons or pots.'
+            }
+        };
+
+        // Initialize inputs
+        const inputsDiv = document.getElementById('inputs');
+        const entries = {};
+        ingredients.forEach(ing => {
+            const label = document.createElement('label');
+            label.innerHTML = `${ing}: <input type="number" id="${ing.replace(/ /g, '_')}" min="0" value="0">`;
+            inputsDiv.appendChild(label);
+            entries[ing] = document.getElementById(ing.replace(/ /g, '_'));
+        });
+
+        function checkRecipes() {
+            const inventory = {};
+            ingredients.forEach(ing => {
+                inventory[ing] = parseInt(entries[ing].value) || 0;
+            });
+
+            const available = [];
+            Object.keys(recipes).forEach(name => {
+                const data = recipes[name];
+                const canMake = Object.keys(data.ingredients).every(ing => inventory[ing] >= data.ingredients[ing]);
+                if (canMake) available.push(name);
+            });
+
+            const list = document.getElementById('recipesList');
+            list.innerHTML = '';
+            if (available.length === 0) {
+                const li = document.createElement('li');
+                li.textContent = 'No recipes available with current ingredients.';
+                list.appendChild(li);
+            } else {
+                available.forEach(rec => {
+                    const li = document.createElement('li');
+                    li.textContent = rec;
+                    li.onclick = () => showGuide(rec);
+                    list.appendChild(li);
+                });
+            }
+        }
+
+        function showGuide(name) {
+            const data = recipes[name];
+            let guide = `Recipe: ${name}\n\nBase: ${data.base}\n\nIngredients: ${JSON.stringify(data.ingredients, null, 2)}\n\nGuide:\n`;
+            data.steps.forEach((step, i) => {
+                guide += `${i + 1}. ${step}\n`;
+            });
+            guide += `\n\nEffects:\n${data.effects}`;
+            document.getElementById('guide').textContent = guide;
+        }
+    </script>
+</body>
+</html>
